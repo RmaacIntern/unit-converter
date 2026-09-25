@@ -18,13 +18,18 @@ User Messaging Platform for consent-gated banner and interstitial ads.
 - Four explicit UI states (Loading / Empty / Content / Invalid) driven by a pure reducer
 - Rotation- and process-death-safe input via `SavedStateHandle`
 - UMP consent gates every ad request; a decline leaves the app fully usable with zero ads
-- Bottom banner ad and a capped interstitial (never on the first session, max 4/day)
-- Firebase Analytics/Crashlytics/Remote Config, all no-ops on a fresh clone with no
-  `google-services.json`
+- Bottom banner ad and interstitial ads on category/unit clicks
+- **Firebase Remote Config & Analytics Integration:** Connected to Firebase (`unitconverter-app-ebc23`) to remotely control ad parameters (`banner_show` and `interstitial_show`) dynamically in real-time.
 
 See [`SPEC.md`](SPEC.md) for the full requirements this was built against,
 [`DESIGN.md`](DESIGN.md) for the screen-by-screen UI spec, and
 [`ARCHITECTURE.md`](ARCHITECTURE.md) for how it's put together.
+
+> **Note on Firebase Remote Config Testing:**
+> This app is connected to Firebase Remote Config for remote ad management (`unitconverter-app-ebc23`).
+> - `banner_show` (`Boolean`): Toggles bottom banner ads on/off remotely in real-time.
+> - `interstitial_show` (`Boolean`): Toggles full-screen interstitial ads on/off remotely in real-time.
+> - In Debug builds, the Remote Config fetch interval is `0` seconds, enabling instant remote parameter updates upon launch.
 
 ## Tech stack
 
