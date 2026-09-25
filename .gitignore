@@ -1,0 +1,26 @@
+# Gradle
+.gradle/
+build/
+local.properties
+
+# Secrets & signing — NEVER commit
+google-services.json
+*.jks
+*.keystore
+keystore.properties
+key.properties
+
+# Android Studio
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Misc
+.DS_Store
+*.log
+*.apk
+*.aab
+.navigation/
+*.hprof

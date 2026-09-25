@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Simplified geometric mark approximating RMAAC Group logo.
+     Replace with official asset when available. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Outer geometric frame -->
+    <path
+        android:fillColor="#1A1A2E"
+        android:pathData="M20,20 L88,20 L88,88 L20,88 Z" />
+    <!-- Inner stylized R / building mark -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M34,30 L34,78 L48,78 L48,58 L62,78 L78,78 L58,52 C66,50 72,44 72,36 C72,26 64,22 52,22 L34,22 Z M48,34 L52,34 C56,34 58,36 58,38 C58,40 56,42 52,42 L48,42 Z" />
+    <!-- Accent line -->
+    <path
+        android:fillColor="#E8B86D"
+        android:pathData="M20,88 L88,88 L88,94 L20,94 Z" />
+</vector>
