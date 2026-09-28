@@ -114,5 +114,5 @@ hours of mechanical work against a document I had already read. Don't repeat tha
 |---|---|
 | Author | Shazil Qureshi, 2026-09-28 |
 | Repo canonical URL | `https://github.com/RmaacIntern/unit-converter` |
-| Latest commit at time of writing | *(record on commit — this note will be amended with its own SHA)* |
+| Latest commit at time of writing |d2934e7a52d6ae8129d15d3763414da18b21340a |
 | Review this responds to | `CORRECTION-2026-09-28-the-review-marked-the-wrong-artefacts.md` (Dr. Shehzrah Abbasi) |

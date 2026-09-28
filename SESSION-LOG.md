@@ -240,7 +240,7 @@ to `banner_show`. [certain, verified on emulator]
 title: "Unit Converter — 2026-09-28 session log: docs pass 2 (correction from review)"
 app: com.aivigil.unitconverter
 date: 2026-09-28
-tip: (to be recorded on commit — this file will be amended with its SHA in the commit that adds it)
+tip: d2934e7a52d6ae8129d15d3763414da18b21340a
 status: "Responding to the 2026-09-28 review that graded Shazil 6/10. Docs restructured; three named contradictions fixed; confidence tags applied throughout."
 type: session log
 ---
