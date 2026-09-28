@@ -60,6 +60,22 @@ Unlike an earlier revision of this project, the domain layer is a single
 `ConversionEngine.kt` / `NumberFormatter.kt` / `NumberSymbols.kt`. Functionally
 equivalent; just fewer files.
 
+## Decisions
+
+| # | Decision | Why | What we gave up | Confidence |
+|---|---|---|---|---|
+| 1 | Jetpack Compose, not Views | Two screens total, no legacy interop needed. State-driven UI matches the pure-reducer approach the engine already uses | Team's Views familiarity; harder to lift-and-shift into any older codebase that expects XML layouts | [certain] |
+| 2 | Single Activity, no navigation library | Two destinations only (Main / Settings). A saveable enum in `MainActivity` costs nothing; adding Navigation-Compose or the fragment nav graph would be more code and more configuration than saved | Deep links, per-screen back-stack tooling, and any Android-Studio navigation-graph visual editor | [certain] |
+| 3 | Categories as a Home grid, not tabs | Grid is 2 taps deep (Home → Convert) but each row shows the unit list preview so the user picks with more information. Tabs are 1 tap but demand horizontal scrolling on a phone in portrait | One tap of latency to reach a category; back-stack has one more level than a pure tab layout would | [likely] — tested visually, no A/B data |
+| 4 | Pure-Kotlin domain layer | `ConversionEngine.kt` has zero Android imports, so every rule (36 units, 6 temperature scales, absolute-zero validation) is JVM-testable with no Robolectric or emulator | The convenience of Android `Context` inside the engine; anything Android-shaped has to be marshalled at the ViewModel boundary | [certain] |
+| 5 | Temperature via explicit to/from-Kelvin function pairs, not multipliers | Delisle is inverted (higher °De = colder). A `toBase` multiplier can't express that. Kelvin as the pivot also makes the absolute-zero check the same code path for every scale | Extra lambda per scale; can't reuse the linear-conversion helper linear categories use | [certain] |
+| 6 | DataStore, not SharedPreferences | Async by design, survives process death without a synchronous main-thread read at startup, matches the Flow-based reducer above it | Extra dependency; can't do a synchronous "read one key at launch" the way SharedPreferences allows | [certain] |
+| 7 | `SavedStateHandle` for in-progress form | Rotation AND process-death survival for typed input, without persisting half-typed numbers to DataStore forever | Slightly more ViewModel boilerplate than just `remember { mutableStateOf() }` | [certain] |
+| 8 | `minSdk` 24 | ~97% device coverage per Google's public dashboard; unblocks Java 8+ APIs, java.time, adaptive icons | Android 5–6 users (~3% globally, ~1% in target markets) | [certain] |
+| 9 | UMP + custom TCF Purpose-1 check, not just `canRequestAds()` | `canRequestAds()` returns true even when an EEA user declines because Google may serve limited ads. Brief requires zero ads on decline, so we also read the TCF string | Extra branch; a future IAB TCF v3 change would need re-verification | [likely] |
+| 10 | Kept `com.google.android.gms:play-services-ads` (legacy GMA SDK) | Legacy SDK is still in maintenance mode; migrating to the Next-Gen SDK is a separate scope call for the tech lead | Some newer bidding features; `getCurrentOrientationAnchoredAdaptiveBannerAdSize` is deprecated (we use it anyway for now) | [likely] — SDK migration deferred to a later gate |
+| 11 | Firebase Remote Config key names `banner_show` / `interstitial_show` | Matches the actual Firebase console (`unitconverter-app-ebc23`) as configured; short names read cleanly in the console UI | An earlier draft used `banner_enabled` / `interstitial_enabled`, so any external documentation referring to those old names needs updating | [certain] |
+
 ## Main-screen state machine
 The UI state is a pure function of two inputs:
 
@@ -104,7 +120,23 @@ UI layer never touches ad code.
 - **Results are always finite.** Overflow is reported as `OutOfRange`, never shown as ∞.
 - **Temperature noise is removed.** Results within `1e-9` of zero snap to `0.0`.
 
-## Persistence
+## Data
+
+| What | Stored where | Survives process death? | Survives uninstall? | Confidence |
+|---|---|---|---|---|
+| Decimal places (0–6) | DataStore `settings` file (Preferences) | Yes | No — DataStore lives in the app's private data dir, wiped on uninstall | [certain] |
+| Default category | DataStore `settings` | Yes | No | [certain] |
+| Interstitial cap counters (day + count) | DataStore `ad_prefs` | Yes | No | [certain] |
+| First-session flag | DataStore `ad_prefs` | Yes | No | [certain] |
+| In-progress form (category id, from/to unit id, typed value, converted flag) | `SavedStateHandle` (Bundle-backed) | Yes | No — SavedState is per-process, not persisted to disk | [certain] |
+| UMP consent record | Managed by UMP SDK (private SharedPreferences) | Yes | No | [certain] |
+| Firebase installation ID (used by Remote Config, Analytics) | Managed by Firebase SDK | Yes | No — new UUID on reinstall | [likely] |
+| AdMob ad-serving state (frequency capping etc.) | Managed by Google Mobile Ads SDK | Yes | No | [likely] |
+
+Nothing this app writes survives an uninstall. There is no cloud sync, no account,
+no external backup. That is deliberate — SPEC.md rules out accounts and network state.
+
+## Persistence — details on the DataStore stores
 | Store | Keys | Why here |
 |---|---|---|
 | DataStore `settings` | `decimal_places` (0–6, default 4), `default_category` | User preferences; survive process death; failed writes are swallowed so the UI snaps back instead of crashing |
@@ -156,8 +188,8 @@ way; a failed fetch just logs and keeps the last-activated (or default) values.
 
 | Key | Default | Notes |
 |---|---|---|
-| `banner_enabled` | `true` | |
-| `interstitial_enabled` | `true` | |
+| `banner_show` | `true` | Kills the banner slot at runtime — layout hides, no ad requests |
+| `interstitial_show` | `true` | Kills every interstitial trigger (splash, unit-change, back-press, convert) |
 | `interstitial_daily_cap` | `4` | Clamped to 0–4 in `AdsConfig.from()`: remote can lower the cap, never raise it |
 | `log_paid_ad_impressions` | `true` | No kill switch is wired up yet — see Known issues |
 
@@ -197,6 +229,34 @@ exists at that AGP version.
 - **`gradle/libs.versions.toml` declares `androidx-navigation-compose` and
   `navigationCompose` that nothing in `app/build.gradle.kts` actually uses** — dead
   catalog entries, safe to remove.
+
+## Third-party dependencies
+
+| Library | Version | Why | What breaks without it | Confidence |
+|---|---|---|---|---|
+| `androidx.compose.*` (via BOM 2024.10.01) | BOM 2024.10.01 | Entire UI layer | UI won't build; there is no XML fallback | [certain] |
+| `androidx.compose.material3` | via BOM | M3 components (Card, Slider, Scaffold, TopAppBar, DropdownMenu, RadioButton) | UI unstyled; would need to hand-roll every control | [certain] |
+| `androidx.lifecycle:lifecycle-viewmodel-compose` | 2.8.x | ViewModels in composables (`viewModel(...)`) | Would need to pass ViewModels through parameters everywhere | [certain] |
+| `androidx.datastore:datastore-preferences` | 1.1.x | Async settings + ad-prefs storage | Would fall back to synchronous `SharedPreferences` on the main thread | [certain] |
+| `com.google.android.gms:play-services-ads` | 23.x | Banner + interstitial ads | No monetization | [certain] |
+| `com.google.android.ump:user-messaging-platform` | 3.x | GDPR consent form | Cannot legally serve personalized ads in EEA; brief requires consent-gated flow | [certain] |
+| `com.google.firebase:firebase-config-ktx` | via Firebase BOM | Remote-controlled `banner_show` / `interstitial_show` kill switches | Ad flags freeze at build-time defaults; cannot disable ads remotely after release | [certain] |
+| `com.google.firebase:firebase-analytics-ktx` | via Firebase BOM | `ad_impression` event logging (paid-event listener) | No revenue reporting through Firebase | [certain] |
+| `com.google.firebase:firebase-crashlytics-ktx` | via Firebase BOM | Crash reporting on production installs | No production crash visibility | [likely] — plugin only applied when `google-services.json` present |
+| `junit:junit` | 4.13.x | `ConversionEngineTest` (unit-tested engine, 36 units + temperature scales) | Tests won't compile | [certain] |
+
+## Threading
+
+| Work | Runs on | Why | Confidence |
+|---|---|---|---|
+| Compose UI, all `@Composable` code | Main thread (immediate dispatcher) | Compose contract; touching UI state off-main throws | [certain] |
+| `MobileAds.initialize()` | IO dispatcher (`Dispatchers.IO`) | First-time init opens files, reads config; blocking the main thread here shows an ANR on cold start on some devices | [certain] |
+| DataStore reads/writes (`SettingsRepository`, `AdPrefsStore`) | DataStore's own dispatcher (`Dispatchers.IO` internally) | DataStore forbids main-thread access by design | [certain] |
+| UMP consent gathering, `requestConsentInfoUpdate` | Main thread (SDK handles its own threading) | UMP SDK contract | [certain] |
+| Firebase Remote Config `fetchAndActivate()` | Firebase-managed background thread | Firebase SDK contract; the completion listener returns to main | [certain] |
+| Ad-impression paid-event listener | Called by GMA SDK on the main thread | Just forwards to `Telemetry.logAdImpression`, which is a no-op if Firebase isn't wired | [certain] |
+| Conversion engine (`ConversionEngine.evaluate`, `.formula`) | Called from the ViewModel's `combine { ... }` on the ViewModel scope's default dispatcher | Pure Kotlin, blocking, no I/O — safe on any thread, but not on the main thread for a tight loop | [certain] |
+| One-shot events (`ConversionCompleted`, `UnitChanged`) | `Channel` collected on main via `repeatOnLifecycle` | Ensures the interstitial trigger runs while the Activity is at least STARTED | [certain] |
 
 ## Manifest permissions
 `AndroidManifest.xml` declares `INTERNET` **and** `ACCESS_NETWORK_STATE`. SPEC.md's
@@ -240,6 +300,32 @@ Things a future contributor (or reviewer) will trip over:
    isn't actually checked anywhere. Confirm intent: if double counting after linking
    AdMob to Firebase (Gate 6) is a real risk, `logPaidImpression` needs to check
    `config.value.logPaidImpressions` before calling `Telemetry`.
+
+## What I would change with more time
+
+1. **Consolidate the two colour palettes** (`Color.kt` vs `NeonThemePalette.kt`). Pick
+   one, delete the other, and point every import at it. The visible UI barely uses
+   `MaterialTheme.colorScheme` because most colours are pulled directly from
+   `NeonThemePalette`. This is a purely mechanical rename that would take an hour but
+   nobody else can safely do it while ambiguity remains. *[certain] worthwhile*
+2. **Consolidate the two `AdConfig` types.** `ads/AdConfig.kt` is unused; the live
+   config is an internal `AdsConfig` inside `AdsController.kt`. Merge into a single
+   top-level file. *[certain] worthwhile*
+3. **Move hardcoded strings out of `MainScreen.kt` into the existing (but unused)
+   `strings.xml` entries.** Blocks localization today. *[certain] worthwhile*
+4. **Add `ConversionStateTest` and `AdPrefsStoreTest`** — the reducer and the daily
+   cap store are both testable pure logic; only `ConversionEngineTest` exists so far.
+   *[certain] worthwhile*
+5. **Write a proper `QA-REPORT.md` on two real devices.** No device testing has been
+   performed yet; the app has only ever been run on emulators and the current author's
+   own phone. Gate 10 blocker. *[certain] worthwhile*
+6. **Investigate Google Mobile Ads Next-Gen SDK migration.** The legacy SDK is in
+   maintenance mode. Not urgent — no user-visible impact — but a ticking bell. *[likely]
+   worth doing eventually*
+7. **Route Firebase Remote Config keys through a single `RemoteConfigKeys` object**
+   instead of string literals inside `AdsController`. Would prevent the kind of
+   `banner_show` vs `banner_enabled` drift the last docs pass had to fix. *[likely]
+   worthwhile*
 
 ## Package name
 `com.aivigil.unitconverter`. Permanent: never change it after the first Play upload.
