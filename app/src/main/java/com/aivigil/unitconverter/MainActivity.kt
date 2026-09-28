@@ -53,6 +53,8 @@ class MainActivity : ComponentActivity() {
                             onOpenSettings = { destination = Destination.Settings },
                             onConversionCompleted = { adsController.onConversionCompleted(this@MainActivity) },
                             onUnitChanged = { adsController.onUnitChanged(this@MainActivity) },
+                            onSplashEnter = { onDone -> adsController.onSplashEnter(this@MainActivity, onDone) },
+                            onBackPressed = { onDone -> adsController.onBackPressed(this@MainActivity, onDone) },
                             onExitApp = { finish() },
                             bannerSlot = { BannerAdSlot(state = bannerState, controller = adsController) },
                         )

@@ -128,6 +128,8 @@ fun MainRoute(
     onOpenSettings: () -> Unit,
     onConversionCompleted: () -> Unit,
     onUnitChanged: () -> Unit,
+    onSplashEnter: (onDone: () -> Unit) -> Unit,
+    onBackPressed: (onDone: () -> Unit) -> Unit,
     onExitApp: () -> Unit,
     bannerSlot: @Composable () -> Unit,
     viewModel: ConversionViewModel = viewModel(factory = ConversionViewModel.Factory),
@@ -165,6 +167,8 @@ fun MainRoute(
         state = state,
         actions = actions,
         onOpenSettings = onOpenSettings,
+        onSplashEnter = onSplashEnter,
+        onBackPressed = onBackPressed,
         onExitApp = onExitApp,
         bannerSlot = bannerSlot,
     )
@@ -175,6 +179,8 @@ fun MainScreen(
     state: MainUiState,
     actions: MainActions,
     onOpenSettings: () -> Unit,
+    onSplashEnter: (onDone: () -> Unit) -> Unit,
+    onBackPressed: (onDone: () -> Unit) -> Unit,
     onExitApp: () -> Unit,
     bannerSlot: @Composable () -> Unit,
     modifier: Modifier = Modifier,
@@ -183,10 +189,14 @@ fun MainScreen(
     val scope = rememberCoroutineScope()
     val exitPrompt = rememberExitPromptController(scope)
 
-    BackHandler(enabled = pane == Pane.Convert) { pane = Pane.Home }
-    // Splash is entry-only: back from Home leaves the app rather than reopening it,
-    // so the exit prompt is the last thing between the user and closing the app.
-    BackHandler(enabled = pane == Pane.Home || pane == Pane.Splash) { exitPrompt.show() }
+    // Back from Convert → show interstitial then go to Home
+    BackHandler(enabled = pane == Pane.Convert) {
+        onBackPressed { pane = Pane.Home }
+    }
+    // Back from Home/Splash → show interstitial then show exit dialog
+    BackHandler(enabled = pane == Pane.Home || pane == Pane.Splash) {
+        onBackPressed { exitPrompt.show() }
+    }
 
     ExitConfirmDialog(controller = exitPrompt, onConfirmExit = onExitApp)
 
@@ -196,7 +206,8 @@ fun MainScreen(
     }
 
     when (pane) {
-        Pane.Splash -> SplashScreen(onEnter = { pane = Pane.Home })
+        // Splash: show interstitial when user taps "Tap to enter", then navigate to Home
+        Pane.Splash -> SplashScreen(onEnter = { onSplashEnter { pane = Pane.Home } })
 
         Pane.Home -> Scaffold(
             modifier = modifier,

@@ -97,7 +97,7 @@ git init
 git add .
 git commit -m "Initial commit: Unit Converter (engine, UI, ads, docs)"
 git branch -M main
-git remote add origin https://github.com/RmaacIntern/unit-converter.git
+git remote add origin https://github.com/rmaacaiintern-shazil/unit-converter.git
 git push -u origin main
 ```
 

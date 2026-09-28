@@ -108,6 +108,14 @@ class AdsController private constructor(context: Context) {
     private var interstitialShowing = false
 
     private var lastUnitChangeInterstitialAt = 0L
+    private var lastSplashInterstitialAt = 0L
+    private var lastBackInterstitialAt = 0L
+
+    /**
+     * If the user taps "Tap to enter" before MobileAds finishes initializing,
+     * we store the action here and fire it as soon as ads become Ready.
+     */
+    private var pendingSplashAction: (() -> Unit)? = null
 
     private val _privacyOptionsRequired = MutableStateFlow(false)
 
@@ -181,6 +189,7 @@ class AdsController private constructor(context: Context) {
         if (mobileAdsInitialized) {
             availability.value = AdsAvailability.Ready
             preloadInterstitialIfEligible()
+            firePendingSplashAction()
             return
         }
         if (!mobileAdsInitStarted.compareAndSet(false, true)) return
@@ -191,10 +200,22 @@ class AdsController private constructor(context: Context) {
                     if (adsPermittedByConsent()) {
                         availability.value = AdsAvailability.Ready
                         preloadInterstitialIfEligible()
+                        firePendingSplashAction()
                     }
                 }
             }
         }
+    }
+
+    /**
+     * If the user tapped "Tap to enter" before MobileAds was ready, this fires
+     * that action now that we're initialized. Called from [startMobileAds].
+     */
+    @MainThread
+    private fun firePendingSplashAction() {
+        val action = pendingSplashAction ?: return
+        pendingSplashAction = null
+        action()
     }
 
     // -----------------------------------------------------------------------------------------
@@ -238,10 +259,9 @@ class AdsController private constructor(context: Context) {
         if (interstitial != null || interstitialLoading || interstitialShowing) return
         interstitialLoading = true
         scope.launch {
-            val isFirst = if (BuildConfig.DEBUG) false else firstSession.await()
-            val cap = if (BuildConfig.DEBUG) 100 else config.value.interstitialDailyCap
-            val eligible = !isFirst && adPrefs.canShowInterstitial(cap)
-            if (!eligible || availability.value != AdsAvailability.Ready) {
+            // No session/cap gate here — preloading must always be possible so
+            // splash, back-press and unit-change ads can all fire.
+            if (availability.value != AdsAvailability.Ready) {
                 interstitialLoading = false
                 return@launch
             }
@@ -267,6 +287,113 @@ class AdsController private constructor(context: Context) {
                     }
                 },
             )
+        }
+    }
+
+    /**
+     * Called when the user taps "Tap to enter" on the splash screen.
+     * Shows an interstitial before navigating to Home.
+     * [onAdDone] is called whether the ad showed and was dismissed, failed to show,
+     * or was skipped — so the navigation always happens.
+     */
+    @MainThread
+    fun onSplashEnter(activity: ComponentActivity, onAdDone: () -> Unit) {
+        // Ads turned off by consent or Remote Config — skip straight through
+        if (availability.value == AdsAvailability.Off || !config.value.interstitialEnabled) {
+            onAdDone()
+            return
+        }
+
+        // Ads not ready yet (MobileAds still initializing) — queue the action.
+        // firePendingSplashAction() will call us again once initialization finishes.
+        // This is the main reason splash ads don't show: the user taps "Tap to enter"
+        // within 1-2 seconds of launch before MobileAds.initialize() has completed.
+        if (availability.value != AdsAvailability.Ready) {
+            pendingSplashAction = { onSplashEnter(activity, onAdDone) }
+            return
+        }
+
+        if (interstitialShowing) { onAdDone(); return }
+
+        val now = System.currentTimeMillis()
+        val cooldown = if (BuildConfig.DEBUG) 0L else SPLASH_COOLDOWN_MS
+        if (now - lastSplashInterstitialAt < cooldown) {
+            onAdDone()
+            return
+        }
+
+        val ad = interstitial ?: run {
+            // No ad loaded yet — start loading and skip this time
+            preloadInterstitialIfEligible()
+            onAdDone()
+            return
+        }
+
+        scope.launch {
+            if (!activity.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) { onAdDone(); return@launch }
+            if (interstitial !== ad || interstitialShowing) { onAdDone(); return@launch }
+            interstitial = null
+            interstitialShowing = true
+            ad.fullScreenContentCallback = object : FullScreenContentCallback() {
+                override fun onAdShowedFullScreenContent() {
+                    lastSplashInterstitialAt = System.currentTimeMillis()
+                }
+                override fun onAdDismissedFullScreenContent() {
+                    interstitialShowing = false
+                    preloadInterstitialIfEligible()
+                    onAdDone()
+                }
+                override fun onAdFailedToShowFullScreenContent(error: AdError) {
+                    interstitialShowing = false
+                    Log.w(TAG, "Splash interstitial failed (${error.code}): ${error.message}")
+                    preloadInterstitialIfEligible()
+                    onAdDone()
+                }
+            }
+            ad.show(activity)
+        }
+    }
+
+    /**
+     * Called when the user presses back on Convert (returning to Home) or on Home/Splash.
+     * Shows an interstitial then calls [onAdDone] to continue the back navigation.
+     * Navigation always happens regardless of whether the ad showed.
+     */
+    @MainThread
+    fun onBackPressed(activity: ComponentActivity, onAdDone: () -> Unit) {
+        if (availability.value != AdsAvailability.Ready || !config.value.interstitialEnabled || interstitialShowing) {
+            onAdDone()
+            return
+        }
+        val now = System.currentTimeMillis()
+        val cooldown = if (BuildConfig.DEBUG) 0L else BACK_COOLDOWN_MS
+        if (now - lastBackInterstitialAt < cooldown) {
+            onAdDone()
+            return
+        }
+        val ad = interstitial ?: run { preloadInterstitialIfEligible(); onAdDone(); return }
+        scope.launch {
+            if (!activity.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) { onAdDone(); return@launch }
+            if (interstitial !== ad || interstitialShowing) { onAdDone(); return@launch }
+            interstitial = null
+            interstitialShowing = true
+            ad.fullScreenContentCallback = object : FullScreenContentCallback() {
+                override fun onAdShowedFullScreenContent() {
+                    lastBackInterstitialAt = System.currentTimeMillis()
+                }
+                override fun onAdDismissedFullScreenContent() {
+                    interstitialShowing = false
+                    preloadInterstitialIfEligible()
+                    onAdDone()
+                }
+                override fun onAdFailedToShowFullScreenContent(error: AdError) {
+                    interstitialShowing = false
+                    Log.w(TAG, "Back-press interstitial failed (${error.code}): ${error.message}")
+                    preloadInterstitialIfEligible()
+                    onAdDone()
+                }
+            }
+            ad.show(activity)
         }
     }
 
@@ -344,6 +471,8 @@ class AdsController private constructor(context: Context) {
         private const val FORMAT_INTERSTITIAL = "interstitial"
 
         private const val UNIT_CHANGE_COOLDOWN_MS = 30_000L
+        private const val SPLASH_COOLDOWN_MS = 30_000L   // min gap between splash interstitials
+        private const val BACK_COOLDOWN_MS = 30_000L     // min gap between back-press interstitials
 
         @Volatile
         private var instance: AdsController? = null
