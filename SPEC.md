@@ -73,10 +73,9 @@ All interstitial triggers respect the same UMP consent + TCF Purpose 1 gate + th
   verified on the Pixel 6 emulator (API 34) but not on physical hardware. [certain]
 
 ## Open questions
-None from the brief. Two questions for the Tech Lead noted in the blockers table of
-the most recent session log:
-1. Is `ACCESS_NETWORK_STATE` (auto-merged by the ads SDK) acceptable under the
-   "INTERNET only" spirit of the brief, or does it need documenting as an exception? [certain — unresolved]
-2. Which of the two RMAAC logo drawables (`ic_rmaac_logo.xml` vs `rmaac_logo.xml`)
-   should be kept once the official asset arrives? Recommend keeping `ic_rmaac_logo.xml`
-   for naming consistency with `ic_launcher_*`. [likely]
+
+| # | Question | Who decides | By when | Confidence |
+|---|---|---|---|---|
+| 1 | Is `ACCESS_NETWORK_STATE` (auto-merged by the ads SDK into the manifest) acceptable under the "INTERNET only" spirit of the brief, or does it need documenting as a named exception? | Tech Lead | Gate 6 | [certain — unresolved as of 2026-09-29] |
+| 2 | Which of the two RMAAC logo drawables (`ic_rmaac_logo.xml` vs `rmaac_logo.xml`) should be kept once the official asset arrives? Recommendation: `ic_rmaac_logo.xml` for naming consistency with `ic_launcher_*` | Tech Lead | Before Play listing | [likely] |
+| 3 | Is `https://rmaacgroup.com/privacy` a live page? The privacy policy URL in `strings.xml` points there; the previous value was `.invalid`. The app links to this from Settings — if the page is down, users see a 404. | Tech Lead | Gate 6 | [certain — unverified as of 2026-09-29] |
