@@ -15,7 +15,7 @@ that counts against you."*
 | # | Item | Done | Commit | Note |
 |---|---|---|---|---|
 | S1 | One session log for a week → split into per-day files | yes | *(this commit)* | `SESSION-LOG-2026-09-21.md` through `SESSION-LOG-2026-09-29.md`; the combined `SESSION-LOG.md` is retained for continuity but all canonical content is now in the per-day files |
-| S2 | `tip:` carries prose → real SHA in every `tip:` field | partial | `d2934e7a` | 09-24: `fba069ab...` (real SHA) ✓; 09-28: `d2934e7a...` ✓; 09-22, 09-23: honestly note no SHA exists (repo not initialized); 09-25: references 09-28 commit with explanation; 09-29: will be filled on this commit |
+| S2 | `tip:` carries prose → real SHA in every `tip:` field | partial | `d2934e7a` | 09-24: `fba069ab...` (real SHA) ✓; 09-28: `d2934e7a...` ✓; 09-22, 09-23: honestly note no SHA exists (repo not initialized); 09-25: references 09-28 commit with explanation; 09-29: ✓ d2934e7a52d6ae8129d15d3763414da18b21340a |
 | S3 | `ARCHITECTURE.md` no Decisions table → added with "What we gave up" | yes | `d2934e7a` | 11-row Decisions table with Why / What we gave up / Confidence columns — see `ARCHITECTURE.md §Decisions` |
 | S4 | Missing "Survives uninstall?", "What breaks without it", Threading | yes | `d2934e7a` | All three added: `§Data` table, `§Third-party dependencies` table, `§Threading` section |
 | S5 | `README.md` no "Where everything is" table | yes | `d2934e7a` | Table added with repo / Firebase / AdMob / keystore / privacy-policy rows and "Who has access" column |
@@ -52,5 +52,5 @@ Both documented as blockers in `SESSION-LOG-2026-09-29.md` and `HANDOVER.md`.
 ## Handback
 
 Repository: `https://github.com/RmaacIntern/unit-converter`
-Commit SHA: *(record on commit — amend `tip:` in `SESSION-LOG-2026-09-29.md` post-push)*
+Commit SHA: d2934e7a52d6ae8129d15d3763414da18b21340a
 Deadline: 17:00 Wednesday 30 September 2026
