@@ -3,6 +3,7 @@ title: "Unit Converter — handover note (v2)"
 app: com.aivigil.unitconverter
 repo: https://github.com/RmaacIntern/unit-converter (canonical, RmaacIntern org)
 date: 2026-09-28
+last_updated: 2026-09-30
 supersedes: covering note from 2026-09-27 (scored 5/10 in review dated 2026-09-28 — "oversold completeness")
 author: Shazil Qureshi
 reviewer: Dr. Shehzrah Abbasi
@@ -114,5 +115,5 @@ hours of mechanical work against a document I had already read. Don't repeat tha
 |---|---|
 | Author | Shazil Qureshi, 2026-09-28 |
 | Repo canonical URL | `https://github.com/RmaacIntern/unit-converter` |
-| Latest commit at time of writing | *(record on commit — this note will be amended with its own SHA)* |
+| Latest commit at time of writing | `d2934e7a52d6ae8129d15d3763414da18b21340a` |
 | Review this responds to | `CORRECTION-2026-09-28-the-review-marked-the-wrong-artefacts.md` (Dr. Shehzrah Abbasi) |
